@@ -34,7 +34,7 @@ export default function Chatbot() {
 
     (async () => {
       try {
-        const resp = await fetch("http://localhost:8000/api/chat", {
+        const resp = await fetch("http://localhost:8000/api/chat/id", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ input }),

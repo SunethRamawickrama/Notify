@@ -36,5 +36,12 @@ def upload(file: UploadFile = File(...)):
 @app.post("/api/chat")
 def chat(question: Chat, user=Depends(get_current_user)):
     response =  generate_message(question=question.userMessage)
+    session_id = str(uuid4())
+    # create a new chat session in the database and add these messages to it with userId
+    return JSONResponse(content={"response": response, "session_id": session_id}, status_code=200)
+
+@app.post("/api/chat/{sessionId}")
+def chat(question: Chat, user=Depends(get_current_user)):
+    response =  generate_message(question=question.userMessage)
     chat_id = str(uuid4())
     return JSONResponse(content={"response": response, "chat_id": chat_id}, status_code=200)

@@ -13,6 +13,9 @@ export default function Chat() {
 
   const sendChat = () => {
     setInput("");
+    // call api/chat
+    //get the session id
+    // redirect back to chat/id
   };
 
   return (

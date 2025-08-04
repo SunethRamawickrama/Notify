@@ -16,6 +16,8 @@ const mockChats = [
 
 export default function SidebarComponent() {
   const [collapsed, setCollapsed] = useState(false);
+
+  //if there is an addition to the session in the database, this should auto update the sidebar
   const [chats, setChats] = useState(mockChats);
 
   return (

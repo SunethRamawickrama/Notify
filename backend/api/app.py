@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, Header, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, Header, HTTPException, WebSocket, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,6 +10,7 @@ import db.crud as crud
 from document_processor.upload_handler import UploadHandler
 from chat.chat import Chat, HumanMessageType, AssistantMessageType, generate_message
 from api.jwt_verifier import get_jwk, verify_jwt, get_current_user
+from api.web_socket_manager import manager
 
 from uuid import uuid4
 import logging
@@ -44,6 +45,15 @@ def get_db():
 
 file_saver = UploadHandler()
 
+@app.websocket("/ws/sessions")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        manager.disconnect(websocket)
+
 @app.post("/api/upload")
 def upload(file: UploadFile = File(...)):
     global file_saver
@@ -68,8 +78,8 @@ def get_messages_for_session(session_id: str, db: Session = Depends(get_db)):
         return JSONResponse(content={"response": "Failed to fetch messages"}, status_code=500)
 
 @app.post("/api/chat")
-def chat(question: Chat, db: Session = Depends(get_db)): 
-    
+async def chat(question: Chat, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+
     # create a new chat session in the database and add these messages to it with userId
 
     try:
@@ -99,6 +109,9 @@ def chat(question: Chat, db: Session = Depends(get_db)):
 
     try:
         session = crud.create_session(db=db, sessionId=session_id, userId=question.user_id, initial_messages=messages)
+        background_tasks.add_task(manager.broadcast, {"type": "new_session", "session_id": session_id})
+
+
         return JSONResponse(content={"response": response, "session_id": session_id}, status_code=200)
     except Exception as e:
         logger.error(f"Error creating session: {e}")
@@ -119,14 +132,24 @@ def chat(question: HumanMessageType, sessionId: str, db: Session = Depends(get_d
     crud.append_message(db=db, sessionId=sessionId, message=[question.model_dump(), ai_message.model_dump()])
     return JSONResponse(content={"response": response, "session_id": sessionId}, status_code=200)
 
-@app.get("api/sessions")
+@app.get("/api/sessions")
 # Later will extract the user id from the jwt, keep the header for testing
 def get_sessions_for_the_user(db: Session = Depends(get_db), userId: str = Header(...)):
     try:
         sessions = crud.get_sessions_by_user(db=db, userId=userId)
+
+        serialized_sessions = []
+        for session in sessions:
+            serialized_sessions.append({
+                "sessionId": session.sessionId,
+                "title": session.messages[0]["content"][:10],
+        })
+
+        logger.info(f"Found {serialized_sessions} sessions for userId={userId}")
+    
         if not sessions:
             return JSONResponse(content={"response": "No sessions found for the user"}, status_code=404)
-        return JSONResponse(content={"sessions": sessions}, status_code=200)
+        return JSONResponse(content={"sessions": serialized_sessions}, status_code=200)
     except Exception as e:
         logger.error(f"Error fetching sessions for the user: {e}")
         traceback.print_exc()

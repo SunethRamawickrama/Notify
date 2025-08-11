@@ -11,7 +11,9 @@ def create_session(db: Session, sessionId: str, userId: str, initial_messages: l
     return session
 
 def get_sessions_by_user(db: Session, userId: str):
-    return db.query(ChatSession).filter(ChatSession.userId == userId).all()
+    sessions = db.query(ChatSession).filter(ChatSession.userId == userId).all()
+    logger.info(f"Found {len(sessions)} sessions for userId={userId}")
+    return sessions
 
 def get_session(db: Session, sessionId: str):
     session = db.query(ChatSession).filter(ChatSession.sessionId == sessionId).first()

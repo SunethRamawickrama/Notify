@@ -1,21 +1,43 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useParams } from "next/navigation";
+
+export interface HumanMessageType {
+  id: string;
+  role: "user";
+  content: string;
+}
+export interface AssistantMessageType {
+  id: string;
+  role: "assistant";
+  content: string;
+  retrieved_documents: any[];
+}
 
 export default function Chat() {
   const [input, setInput] = useState("");
-  const router = useRouter();
+  const [messages, setMessages] = useState<any>([]);
+
+  const { sessionId } = useParams();
 
   const supabase = createClient();
   const userId = supabase.auth;
 
-  const [messages, setMessages] = useState<
-    { id: number; role: string; content: string }[]
-  >([]);
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const res = await fetch(
+        `http://localhost:8000/api/messages/${sessionId}`
+      );
+      const data = await res.json();
+      setMessages(data.messages);
+    };
+
+    fetchMessages();
+  }, [sessionId]);
 
   const handleInputChange = (e: any) => {
     setInput(e.target.value);
@@ -28,25 +50,22 @@ export default function Chat() {
     //get the session id
     // redirect back to chat/id
 
-    const userMessage = {
-      id: messages.length + 1,
+    const userMessage: HumanMessageType = {
+      id: String(messages.length + 1),
       role: "user",
       content: input,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev: any) => [...prev, userMessage]);
     setInput("");
 
     try {
       // Call backend api/chat
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const res = await fetch(`http://localhost:8000/api/chat/${sessionId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          userMessage: userMessage.content,
-          user_id: "demo-user", // replace with actual user id when ready
-        }),
+        body: JSON.stringify(userMessage),
       });
 
       if (!res.ok) {
@@ -56,15 +75,15 @@ export default function Chat() {
       const data = await res.json();
 
       // AI response message
-      const aiMessage = {
-        id: userMessage.id + 1,
-        role: "assistant",
+      const aiMessage: AssistantMessageType = {
+        id: data.id,
+        role: data.role,
         content: data.response,
+        retrieved_documents: data.retrieved_documents,
       };
 
       // Append AI message to messages state
-      setMessages((prev) => [...prev, aiMessage]);
-      router.push(`/chat/${data.session_id}`);
+      setMessages((prev: any) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Error sending chat:", error);
       alert("Failed to send message");
@@ -78,7 +97,7 @@ export default function Chat() {
         {messages.length === 0 && (
           <p className="text-center text-gray-400">Start the conversation!</p>
         )}
-        {messages.map((msg) => (
+        {messages.map((msg: any) => (
           <div
             key={msg.id}
             className={`mb-3 flex ${

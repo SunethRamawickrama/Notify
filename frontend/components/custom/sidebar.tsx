@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Menu, MessageSquare } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
+import Link from "next/link";
 
 const mockChats = [
   { id: 1, title: "Chat with Alice" },
@@ -30,9 +31,11 @@ export default function SidebarComponent() {
       {/* Top Bar */}
       <div className="flex items-center justify-between p-4 border-b">
         {!collapsed && (
-          <Button className=" ml-2" variant="default">
-            + New Chat
-          </Button>
+          <Link href="/chat">
+            <Button className=" ml-2" variant="default">
+              + New Chat
+            </Button>
+          </Link>
         )}
         <Button
           variant="ghost"

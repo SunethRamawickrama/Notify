@@ -59,7 +59,7 @@ def upload(file: UploadFile = File(...)):
     global file_saver
     file_saver.upload(file=file)
 
-    return JSONResponse(content={"message": "File uploaded Successfully!"}, status_code=200)
+    return JSONResponse(content={"message": "File uploaded and stored in the vector store successfully!"}, status_code=200)
 
 @app.get("/api/messages/{session_id}")
 def get_messages_for_session(session_id: str, db: Session = Depends(get_db)):
@@ -83,7 +83,9 @@ async def chat(question: Chat, background_tasks: BackgroundTasks, db: Session = 
     # create a new chat session in the database and add these messages to it with userId
 
     try:
-        response =  generate_message(question=question.userMessage)
+        result =  generate_message(question=question.userMessage)
+        response = result.get("generation")
+        retrieved_documents = result.get("retrieved_documents", []) 
         logger.info(f"Generated response: {response}")
     except Exception as e:
         logger.error(f"Error generating response: {e}")
@@ -102,7 +104,7 @@ async def chat(question: Chat, background_tasks: BackgroundTasks, db: Session = 
         "id": 2,
         "role": "assistant",
         "content": response,
-        "retrieved_documents": []
+        "retrieved_documents": retrieved_documents
     }
 
     messages = [user_message, ai_message]
@@ -120,17 +122,19 @@ async def chat(question: Chat, background_tasks: BackgroundTasks, db: Session = 
 
 @app.post("/api/chat/{sessionId}")
 def chat(question: HumanMessageType, sessionId: str, db: Session = Depends(get_db)):
-    response =  generate_message(question=question.content)
+    result =  generate_message(question=question.content)
+    response = result.get("generation")
+    retrieved_documents = result.get("retrieved_documents", [])
 
     ai_message = AssistantMessageType(
         id=str(int(question.id)+1),  
         role="assistant",
         content=response,
-        retrieved_documents=[]
+        retrieved_documents=retrieved_documents
     )
 
     crud.append_message(db=db, sessionId=sessionId, message=[question.model_dump(), ai_message.model_dump()])
-    return JSONResponse(content={"response": response, "session_id": sessionId}, status_code=200)
+    return JSONResponse(content={"response": response, "retrieved_documents": retrieved_documents, "session_id": sessionId}, status_code=200)
 
 @app.get("/api/sessions")
 # Later will extract the user id from the jwt, keep the header for testing

@@ -12,3 +12,5 @@ wheels/
 .env
 
 uploads/
+
+vector_store/

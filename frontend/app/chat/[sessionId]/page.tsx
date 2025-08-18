@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { FileText, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
 
@@ -76,10 +76,10 @@ export default function Chat() {
 
       // AI response message
       const aiMessage: AssistantMessageType = {
-        id: data.id,
-        role: data.role,
+        id: String(messages.length + 1),
+        role: "assistant",
         content: data.response,
-        retrieved_documents: data.retrieved_documents,
+        retrieved_documents: data.retrieved_documents || [],
       };
 
       // Append AI message to messages state
@@ -98,21 +98,45 @@ export default function Chat() {
           <p className="text-center text-gray-400">Start the conversation!</p>
         )}
         {messages.map((msg: any) => (
-          <div
-            key={msg.id}
-            className={`mb-3 flex ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
+          <div key={msg.id} className="mb-3">
             <div
-              className={`max-w-[70%] rounded-lg p-3 ${
-                msg.role === "user"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 text-gray-900"
+              className={`flex ${
+                msg.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {msg.content}
+              <div
+                className={`max-w-[70%] rounded-lg p-3 ${
+                  msg.role === "user"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-900"
+                }`}
+              >
+                {msg.content}
+              </div>
             </div>
+
+            {/* Retrieved documents for assistant messages */}
+            {msg.role === "assistant" &&
+              msg.retrieved_documents &&
+              msg.retrieved_documents.length > 0 && (
+                <div className="mt-2 ml-4 border-l-2 border-gray-300 pl-3 space-y-2">
+                  <p className="text-xs text-gray-500">Retrieved Documents:</p>
+                  {msg.retrieved_documents.map((doc: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="text-xs bg-gray-100 rounded-md p-2 shadow-sm"
+                    >
+                      <div className="flex items-center gap-1 text-gray-700 font-medium">
+                        <FileText className="h-3 w-3" />
+                        <span>
+                          {doc.source} (p.{doc.page_number})
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mt-1">{doc.snippet}...</p>
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         ))}
       </div>
